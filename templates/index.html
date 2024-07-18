@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}">
+    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;700&display=swap" rel="stylesheet">
+    <title>Vorratsmanager</title>
+    <style>
+    </style>
+</head>
+<body>
+<div class="container">
+    <h1>Produktdatenbank</h1>
+    <div class="scrollbox" id="scrollbox">
+        <div class="item">+ NEUER EINTRAG</div>
+        {{ entries|safe }}
+    </div>
+    <script src="static/javascript/script.js"></script>
+    <div id="product_code" class="static-text">{{ code }}</div>
+    <div class="input-container">
+        <input type="text" id="item_name" placeholder="Produktname eingeben">
+        <button id="add_button">Hinzufügen</button>
+        <button id="discard_button">Verwerfen</button>
+    </div>
+</div>
+</body>
+</html>
