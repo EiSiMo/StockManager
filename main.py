@@ -17,8 +17,6 @@ from flask import Flask, render_template, Response, request, send_from_directory
 from todoist_api_python.api import TodoistAPI
 from gtts import gTTS
 
-# TODO hiding api keys, find out how to delete them in past commit, publish repo
-
 logger = logging.getLogger("Root")
 logger.setLevel(logging.DEBUG)
 
@@ -163,7 +161,7 @@ class StockManager:
 
         self.product_database = ProductDatabase("product_database.txt")
 
-        self.codes_todo = ["000000000"]
+        self.codes_todo = []
 
         pygame.mixer.init()
 
@@ -275,28 +273,32 @@ class StockManager:
         self.say("Vorratsmanager gestartet.")
         logger.info(f"starting main loop")
         while True:
-            time.sleep(100)
             code = self.scan_barcode()
-            self.say("Code erkannt.")
             logger.info(f"barcode '{code}' detected")
 
-            logger.debug(f"searching barcode in database")
-            product_name = self.product_database.find(code)
+            logger.info(f"testing barcode validity")
+            valid_barcode_regex = re.compile(r"^\d*$")
+            if re.fullmatch(valid_barcode_regex, code):
+                logger.debug(f"barcode valid - searching barcode in database")
+                product_name = self.product_database.find(code)
 
-            if product_name:
-                logger.info(f"barcode already in database")
-                self.say(f"Ich schreibe {product_name} auf deine Einkaufsliste.")
-                logger.info(f"adding item to shopping list")
-                self.add_item_to_todoist(product_name)
-            else:
-                logger.info(f"barcode not in database yet")
-                if code not in self.codes_todo:
-                    logger.debug(f"adding item to todo list")
-                    self.codes_todo.append(code)
-                    self.say("Unbekanntes Produkt. Bitte in der Datenbank ergänzen!")
+                if product_name:
+                    logger.info(f"barcode already in database")
+                    self.say(f"Ich schreibe {product_name} auf deine Einkaufsliste.")
+                    logger.info(f"adding item to shopping list")
+                    self.add_item_to_todoist(product_name)
                 else:
-                    logger.debug(f"item already on todo list")
-                    self.say("Bitte öffne die Webseite, um das Produkt zu indizieren.")
+                    logger.info(f"barcode not in database yet")
+                    if code not in self.codes_todo:
+                        logger.debug(f"adding item to todo list")
+                        self.codes_todo.append(code)
+                        self.say("Unbekanntes Produkt - bitte in der Datenbank ergänzen!")
+                    else:
+                        logger.debug(f"item already on todo list")
+                        self.say("Bitte öffne die Webseite, um das Produkt zu einzutragen.")
+            else:
+                logger.info("barcode invalid")
+                self.say("Fehler: Dieser Barcode ist nicht gültig.")
 
 
 class WebInterface:
@@ -337,7 +339,7 @@ class WebInterface:
 
         @self.app.before_request
         def log_request_info():
-            logger.info(f"request: {request.method} {request.path} ({request.host})")
+            logger.info(f"request: {request.method} {request.path} ({request.remote_addr})")
 
         @self.app.route("/")
         def home():
