@@ -158,7 +158,7 @@ class StockManager:
     def __init__(self):
         logger.debug(f"initializing StockManager")
 
-        self.todoist_api_key = "5e3904e04bede42252be34b19d88a401240d6dc0"
+        self.todoist_api_key = open("api_key.txt", "r", encoding="utf8").read()
         self.todoist_project_id = "2336429901"
 
         self.product_database = ProductDatabase("product_database.txt")
