@@ -15,9 +15,7 @@ class BarcodeScanner(threading.Thread):
     def run(self):
         while self.running:
             try:
-                # TODO change back
-                barcode = self.scan_barcode_windows_testing("000000000", 30)
-                # barcode = self.scan_barcode()
+                barcode = self.scan_barcode()
                 self.barcode_queue.put(barcode)
             except Exception as e:
                 logger.error("Exception in BarcodeScanner thread", exc_info=e)
