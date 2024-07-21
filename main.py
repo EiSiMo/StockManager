@@ -12,6 +12,8 @@ from logging_setup import setup_logging
 logger = logging.getLogger("Root")
 
 
+# TODO make product database class thread save!
+
 def main():
     setup_logging()
 

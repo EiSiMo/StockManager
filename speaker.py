@@ -28,7 +28,7 @@ class Speaker(threading.Thread):
         logger.debug(f"playing audio")
         pygame.mixer.music.play()
         while pygame.mixer.music.get_busy():
-            pygame.time.Clock().tick(10)
+            pygame.time.Clock().tick(1)
         logger.debug(f"playing audio completed")
 
     def run(self):

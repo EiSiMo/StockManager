@@ -3,3 +3,4 @@ logs
 __pycache__
 .gitattributes
 api_key.txt
+testing_checklist.txt
