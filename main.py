@@ -3,8 +3,6 @@ import logging
 import logging.handlers
 import io
 import os.path
-import pyzbar.pyzbar
-import cv2
 import threading
 import re
 import time
@@ -38,6 +36,8 @@ console_handler.setLevel(logging.ERROR)
 logger.addHandler(timed_handler)
 logger.addHandler(console_handler)
 
+logger.info("----- STOCKMANGER STARTED -----")
+
 
 def log_exception(exc_type, exc_value, exc_traceback):
     if issubclass(exc_type, KeyboardInterrupt):
@@ -57,6 +57,7 @@ class LoggingThread(threading.Thread):
                 self._target(*self._args, **self._kwargs)
         except Exception as e:
             logger.error("Exception in thread", exc_info=e)
+
 
 
 class ProductDatabase(dict):
@@ -182,28 +183,6 @@ class StockManager:
             pygame.time.Clock().tick(10)
         logger.debug(f"playing audio completed")
 
-    def scan_barcode_cam(self):
-        """for use with a camera"""
-        logger.info(f"scan_barcode_cam() called")
-        vid = cv2.VideoCapture(0)
-        logger.debug(f"video capture created - starting frame loop")
-        while True:
-            ret, frame = vid.read()
-            if ret:
-                result = pyzbar.pyzbar.decode(frame)
-                if result:
-                    code = result[0].data.decode("utf8")
-                    if len(code) > 6:
-                        logger.info(f"barcode found '{code}' - length ok - returning")
-                        vid.release()
-                        return code
-                    else:
-                        logger.debug(f"barcode found '{code}' but too short to process (<6)")
-            else:
-                logger.warning(f"invalid frame - restarting camera")
-                vid.release()
-                vid = cv2.VideoCapture(0)
-
     def scan_barcode(self):
         """for use with a barcode scanner"""
         logger.info(f"scan_barcode() called")
@@ -217,7 +196,7 @@ class StockManager:
                 27: 'X', 28: 'Y', 29: 'Z', 30: '!', 31: '@', 32: '#', 33: '$', 34: '%', 35: '^', 36: '&', 37: '*',
                 38: '(', 39: ')', 44: ' ', 45: '_', 46: '+', 47: '{', 48: '}', 49: '|', 51: ':', 52: '"', 53: '~',
                 54: '<', 55: '>', 56: '?'}
-        fp = open('/dev/hidraw0', 'rb')
+        fp = open("/dev/hidraw0", "rb")
         ss = ""
         shift = False
         done = False
@@ -271,34 +250,41 @@ class StockManager:
     def run(self):
         logger.info(f"run() called")
         self.say("Vorratsmanager gestartet.")
-        logger.info(f"starting main loop")
-        while True:
-            code = self.scan_barcode()
-            logger.info(f"barcode '{code}' detected")
 
-            logger.info(f"testing barcode validity")
-            valid_barcode_regex = re.compile(r"^\d*$")
-            if re.fullmatch(valid_barcode_regex, code):
-                logger.debug(f"barcode valid - searching barcode in database")
-                product_name = self.product_database.find(code)
+        logger.debug(f"testing if barcode scanner is connected")
+        if not os.path.exists("/dev/hidraw0"):
+            logger.error("Barcode scanner not connected")
+            self.say("Fehler: Barcode Scanner nicht verbunden")
 
-                if product_name:
-                    logger.info(f"barcode already in database")
-                    self.say(f"Ich schreibe {product_name} auf deine Einkaufsliste.")
-                    logger.info(f"adding item to shopping list")
-                    self.add_item_to_todoist(product_name)
-                else:
-                    logger.info(f"barcode not in database yet")
-                    if code not in self.codes_todo:
-                        logger.debug(f"adding item to todo list")
-                        self.codes_todo.append(code)
-                        self.say("Unbekanntes Produkt - bitte in der Datenbank ergänzen!")
+        else:
+            logger.info(f"starting main loop")
+            while True:
+                code = self.scan_barcode()
+                logger.info(f"barcode '{code}' detected")
+
+                logger.info(f"testing barcode validity")
+                valid_barcode_regex = re.compile(r"^\d*$")
+                if re.fullmatch(valid_barcode_regex, code):
+                    logger.debug(f"barcode valid - searching barcode in database")
+                    product_name = self.product_database.find(code)
+
+                    if product_name:
+                        logger.info(f"barcode already in database")
+                        self.say(f"Ich schreibe {product_name} auf deine Einkaufsliste.")
+                        logger.info(f"adding item to shopping list")
+                        self.add_item_to_todoist(product_name)
                     else:
-                        logger.debug(f"item already on todo list")
-                        self.say("Bitte öffne die Webseite, um das Produkt zu einzutragen.")
-            else:
-                logger.info("barcode invalid")
-                self.say("Fehler: Dieser Barcode ist nicht gültig.")
+                        logger.info(f"barcode not in database yet")
+                        if code not in self.codes_todo:
+                            logger.debug(f"adding item to todo list")
+                            self.codes_todo.append(code)
+                            self.say("Unbekanntes Produkt - bitte in der Datenbank ergänzen!")
+                        else:
+                            logger.debug(f"item already on todo list")
+                            self.say("Bitte öffne die Webseite, um das Produkt einzutragen.")
+                else:
+                    logger.info("barcode invalid")
+                    self.say("Fehler: Dieser Barcode ist nicht gültig.")
 
 
 class WebInterface:
@@ -325,10 +311,21 @@ class WebInterface:
 
     def generate_logs(self):
         logger.debug(f"generate_logs() called")
-        with open("logs/log.log", "r") as file:
+        with open("logs/log.log", "r", encoding="utf8") as file:
             text = file.read()
         lexer = pygments.lexers.TextLexer()
-        html_formatter = pygments.formatters.HtmlFormatter(style="colorful", full=True, linenos=True)
+        html_formatter = pygments.formatters.HtmlFormatter(style="colorful", full=True, linenos=True, encoding="utf8")
+
+        highlighted_code = pygments.highlight(text, lexer, html_formatter)
+
+        return highlighted_code
+
+    def generate_rawdb(self):
+        logger.debug(f"generate_rawdb() called")
+        with open("product_database.txt", "r", encoding="utf8") as file:
+            text = file.read()
+        lexer = pygments.lexers.TextLexer()
+        html_formatter = pygments.formatters.HtmlFormatter(style="colorful", full=True, linenos=True, encoding="utf8")
 
         highlighted_code = pygments.highlight(text, lexer, html_formatter)
 
@@ -381,6 +378,10 @@ class WebInterface:
         def logs():
             return self.generate_logs()
 
+        @self.app.route("/rawdb")
+        def rawdb():
+            return self.generate_rawdb()
+
         @self.app.route("/favicon.ico")
         def favicon():
             return send_from_directory(os.path.join(self.app.root_path, "static/images"), "favicon.ico", mimetype="image/vnd.microsoft.icon")
@@ -397,6 +398,7 @@ class WebInterface:
 
 
 if __name__ == "__main__":
+    # TODO kill webinterface when stockmanager dies
     manager = StockManager()
     manager_thread = LoggingThread(target=manager.run)
     manager_thread.start()
