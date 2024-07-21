@@ -56,7 +56,3 @@ class BarcodeScanner(threading.Thread):
                             ss += hid[int(c)]
         return ss
 
-    def scan_barcode_windows_testing(self, code, sleep):
-        time.sleep(sleep)
-        10 / 0
-        return code
